@@ -178,7 +178,7 @@ AZURITE_TABLE_PORT=10002
 AZURITE_DATA_DIR=./azurite-data
 
 # Docker Network (Optional)
-PLATFORM_NET_NAME=apsilva-fed-platform-net
+PLATFORM_NET_NAME=apsilva-platform-network
 ```
 
 **Changes:**
@@ -331,7 +331,7 @@ sed -i 's/localhost:8000/prod-api.example.com/g' .env
 | Frontend API URL | docker-compose.yml | ✅ FRONTEND_API_BASE_URL env var | ❌ Required |
 | Frontend Port | docker-compose.yml | ✅ FRONTEND_PORT env var | ❌ Required |
 | Azurite Ports | docker-compose.yml | ✅ AZURITE_*_PORT env vars | Local dev defaults |
-| Docker Network | docker-compose.yml | ✅ PLATFORM_NET_NAME env var | apsilva-fed-platform-net |
+| Docker Network | docker-compose.yml | ✅ PLATFORM_NET_NAME env var | apsilva-platform-network |
 
 ---
 

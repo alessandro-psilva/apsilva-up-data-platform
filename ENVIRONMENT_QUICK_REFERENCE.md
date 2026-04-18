@@ -39,12 +39,12 @@ These can be overridden but have sensible defaults:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:8080,http://127.0.0.1:8080` | Backend CORS whitelist |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:8080,http://127.0.0.1:8080,http://apsilva-fed-data-platform.localhost:8080` | Backend CORS whitelist |
 | `AZURITE_BLOB_PORT` | `10000` | Azure Blob storage port |
 | `AZURITE_QUEUE_PORT` | `10001` | Azure Queue storage port |
 | `AZURITE_TABLE_PORT` | `10002` | Azure Table storage port |
 | `AZURITE_DATA_DIR` | `./azurite-data` | Azurite persistence directory |
-| `PLATFORM_NET_NAME` | `apsilva-fed-platform-net` | Docker network name |
+| `PLATFORM_NET_NAME` | `apsilva-platform-network` | Docker network name |
 
 **Error if missing?** NO - safe defaults will be used (for backend compatibility).
 

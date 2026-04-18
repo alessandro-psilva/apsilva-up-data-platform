@@ -2,15 +2,20 @@
 set -euo pipefail
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKEND_DIR="$BASE_DIR/apsilva-bed-data-platform"
-FRONTEND_STACK_DIR="$BASE_DIR/apsilva-fed-data-platform"
+REPOS_DIR="$(dirname "$BASE_DIR")"
+BACKEND_DIR="$REPOS_DIR/apsilva-bed-data-platform"
+FRONTEND_STACK_DIR="$REPOS_DIR/apsilva-fed-data-platform"
+BACKEND_REPO_NAME="$(basename "$BACKEND_DIR")"
+FRONTEND_REPO_NAME="$(basename "$FRONTEND_STACK_DIR")"
+BACKEND_HOST_PUBLIC="${BACKEND_HOST_PUBLIC:-${BACKEND_REPO_NAME}.localhost}"
+FRONTEND_HOST_PUBLIC="${FRONTEND_HOST_PUBLIC:-${FRONTEND_REPO_NAME}.localhost}"
 FRONTEND_ENV_FILE="$FRONTEND_STACK_DIR/.env"
 FRONTEND_ENV_EXAMPLE="$FRONTEND_STACK_DIR/.env.example"
 BACKEND_HOST="${BACKEND_HOST:-}"
 BACKEND_PORT="${BACKEND_PORT:-}"
 FRONTEND_PORT="${FRONTEND_PORT:-}"
 FRONTEND_API_BASE_URL="${FRONTEND_API_BASE_URL:-}"
-PID_FILE="$BASE_DIR/.apsilva-fed-http.pid"
+PID_FILE="$REPOS_DIR/.apsilva-fed-http.pid"
 
 ensure_frontend_env() {
   if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
@@ -22,12 +27,12 @@ ensure_frontend_env() {
     BACKEND_HOST=apsilva-bed-data-platform-api
     BACKEND_PORT=8000
     FRONTEND_PORT=8080
-    FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+    FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 AZURITE_BLOB_PORT=10000
 AZURITE_QUEUE_PORT=10001
 AZURITE_TABLE_PORT=10002
 AZURITE_DATA_DIR=./azurite-data
-PLATFORM_NET_NAME=apsilva-fed-platform-net
+PLATFORM_NET_NAME=apsilva-platform-network
 EOF
       echo "[frontend] Arquivo .env criado com valores padrao"
     fi
@@ -54,7 +59,7 @@ start_backend() {
   (cd "$BACKEND_DIR" && docker compose down --remove-orphans)
   echo "[backend] Subindo API com Docker Compose..."
   (cd "$BACKEND_DIR" && docker compose up -d --build --force-recreate)
-  echo "[backend] OK: http://${BACKEND_HOST}:${BACKEND_PORT}"
+  echo "[backend] OK: http://${BACKEND_HOST_PUBLIC}:${BACKEND_PORT}"
 }
 
 stop_backend() {
@@ -80,7 +85,7 @@ start_frontend() {
 
   echo "[frontend] Subindo frontend containerizado + Azurite..."
   (cd "$FRONTEND_STACK_DIR" && docker compose up -d --build)
-  echo "[frontend] OK: http://localhost:$FRONTEND_PORT"
+  echo "[frontend] OK: http://${FRONTEND_HOST_PUBLIC}:$FRONTEND_PORT"
   echo "[frontend] API target: $FRONTEND_API_BASE_URL"
 }
 
@@ -119,11 +124,15 @@ start_all() {
   echo
   echo "✅ Data Platform pronta!"
   echo
-  echo "🐷 Interface web:      http://localhost:$FRONTEND_PORT"
-  echo "📊 API Backend:        http://${BACKEND_HOST}:${BACKEND_PORT}"
-  echo "📖 Swagger docs:       http://${BACKEND_HOST}:${BACKEND_PORT}/docs"
-  echo "❤️  Health check:       http://${BACKEND_HOST}:${BACKEND_PORT}/health"
+  echo "Acesso local (host):"
+  echo "🐷 Interface web:      http://$FRONTEND_HOST_PUBLIC:$FRONTEND_PORT"
+  echo "📊 API Backend:        http://$BACKEND_HOST_PUBLIC:$BACKEND_PORT"
+  echo "📖 Swagger docs:       http://$BACKEND_HOST_PUBLIC:$BACKEND_PORT/docs"
+  echo "❤️  Health check:       http://$BACKEND_HOST_PUBLIC:$BACKEND_PORT/health"
+  echo
+  echo "Rede Docker (interna):"
   echo "🔌 Front API target:   $FRONTEND_API_BASE_URL"
+  echo "🧭 API service:        http://${BACKEND_HOST}:${BACKEND_PORT}"
 }
 
 stop_all() {
@@ -143,12 +152,18 @@ Comandos:
   status   Mostra status dos dois
 
 📍 Acesso:
-  http://localhost:$FRONTEND_PORT        🐷 Frontend (container)
-  http://${BACKEND_HOST}:${BACKEND_PORT}                 📊 API Backend
+  http://$FRONTEND_HOST_PUBLIC:$FRONTEND_PORT        🐷 Frontend (host)
+  http://$BACKEND_HOST_PUBLIC:$BACKEND_PORT          📊 API Backend (host)
   http://localhost:10000                💾 Azurite Blob
-  http://${BACKEND_HOST}:${BACKEND_PORT}/docs            📖 Swagger docs
+  http://$BACKEND_HOST_PUBLIC:$BACKEND_PORT/docs    📖 Swagger docs (host)
+
+📍 Rede Docker (interna):
+  http://${BACKEND_HOST}:${BACKEND_PORT}                 📊 API Backend service
+  $FRONTEND_API_BASE_URL                 🔌 Front API target
 
 Variaveis opcionais:
+  BACKEND_HOST_PUBLIC       Host publico da API no host (padrao: <repo-backend>.localhost)
+  FRONTEND_HOST_PUBLIC      Host publico do frontend no host (padrao: <repo-frontend>.localhost)
   BACKEND_HOST              Host da API (obrigatorio no .env)
   BACKEND_PORT              Porta da API (obrigatorio no .env)
   FRONTEND_PORT             Porta do frontend no host (obrigatorio no .env)
