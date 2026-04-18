@@ -1,0 +1,29 @@
+# Environment files
+.env
+.env.local
+
+# Docker data
+azurite-data/
+
+# Logs
+*.log
+logs/
+
+# PID files
+*.pid
+.apsilva-*.pid
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+
+# Temporary files
+/tmp
+*.tmp
