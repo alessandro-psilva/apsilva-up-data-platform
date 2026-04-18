@@ -4,10 +4,10 @@
 
 ```bash
 # 1. Copy environment template
-cp apsilva-fed-data-platform/.env.example apsilva-fed-data-platform/.env
+cp .env.example .env
 
 # 2. Edit if needed (optional - defaults work for local dev)
-nano apsilva-fed-data-platform/.env
+nano .env
 
 # 3. Start everything
 ./up-data-platform.sh restart
@@ -20,11 +20,11 @@ open http://localhost:8080
 
 ## 📋 Required Environment Variables
 
-These MUST be set in `.env` or containers will fail:
+These MUST be set in `apsilva-up-data-platform/.env` or orchestration will fail:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `FRONTEND_API_BASE_URL` | `http://apsilva-bed-data-platform-api:8000` | Backend API endpoint for frontend |
+| `FRONTEND_API_BASE_URL` | `http://apsilva-bed-data-platform.localhost:8000` | Backend API endpoint consumed by frontend |
 | `FRONTEND_PORT` | `8080` | Frontend port on localhost |
 | `BACKEND_HOST` | `apsilva-bed-data-platform-api` | Backend service name |
 | `BACKEND_PORT` | `8000` | Backend service port |
@@ -77,15 +77,13 @@ BACKEND_PORT=8000
 
 ---
 
-## 🔗 Service Names (Docker Internal)
+## 🔗 API URL for Frontend
 
-The project uses **service names** instead of IPs for inter-container communication:
+`FRONTEND_API_BASE_URL` is consumed by the browser, so it must be reachable from the host.
 
-- Frontend connects to: `http://apsilva-bed-data-platform-api:8000` (service name)
-- NOT: `http://localhost:8000` (only from host)
-- NOT: `http://127.0.0.1:8000` (container doesn't have localhost)
-
-This allows containers to find each other automatically on the Docker network.
+- Recommended local value: `http://apsilva-bed-data-platform.localhost:8000`
+- Also valid: `http://localhost:8000`
+- Avoid Docker-only service names for this value (for example `http://apsilva-bed-data-platform-api:8000`)
 
 ---
 
@@ -95,7 +93,7 @@ Check that parametrization is working:
 
 ```bash
 # 1. Verify .env exists
-cat apsilva-fed-data-platform/.env
+cat .env
 
 # 2. Check frontend logs
 docker compose -f apsilva-fed-data-platform/docker-compose.yml logs frontend
@@ -146,9 +144,10 @@ docker compose -f apsilva-bed-data-platform/docker-compose.yml logs api
 ## 📚 More Information
 
 - **Full Documentation**: See [PARAMETERIZATION_REPORT.md](../PARAMETERIZATION_REPORT.md)
-- **Backend Config**: [apsilva-bed-data-platform/.env.example](../apsilva-bed-data-platform/.env.example)
-- **Frontend Config**: [apsilva-fed-data-platform/.env.example](../apsilva-fed-data-platform/.env.example)
-- **Orchestration**: [up-data-platform.sh](../up-data-platform.sh)
+- **Orchestration Env Template**: [.env.example](.env.example)
+- **Backend Config**: [../apsilva-bed-data-platform/.env.example](../apsilva-bed-data-platform/.env.example)
+- **Frontend Config**: [../apsilva-fed-data-platform/.env.example](../apsilva-fed-data-platform/.env.example)
+- **Orchestration**: [up-data-platform.sh](up-data-platform.sh)
 
 ---
 
@@ -156,7 +155,7 @@ docker compose -f apsilva-bed-data-platform/docker-compose.yml logs api
 
 > **Everything is parametrized. Nothing is hardcoded.**
 
-If you're seeing a localhost URL, it means either:
+If you're seeing an unexpected URL, it means either:
 1. You're looking at the default value in code (will be overridden by .env)
 2. You're looking at .env.example (use as template, don't edit directly)
 3. You found a bug - please file an issue!

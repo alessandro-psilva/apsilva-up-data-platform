@@ -20,8 +20,8 @@
             ↓ (sourced by)
 ┌─────────────────────────────────────────────────────────────┐
 │          up-data-platform.sh (orchestration)               │
-│  ✅ load_frontend_env(): Valida vars com ${VAR:?error}    │
-│  ✅ ensure_frontend_env(): Auto-gera .env se ausente      │
+│  ✅ load_up_env(): Valida vars com ${VAR:?error}          │
+│  ✅ ensure_up_env(): Auto-gera .env se ausente            │
 │  ✅ Sem fallback defaults - erro explícito se falta var   │
 └─────────────────────────────────────────────────────────────┘
     ├──────────────────┬──────────────────┬──────────────────┐
@@ -157,11 +157,11 @@ if (typeof value === "object" && value !== null) {
 ### Static Config (frontend/assets/config.js)
 ```javascript
 window.APP_CONFIG = {
-  apiBaseUrl: "http://apsilva-bed-data-platform-api:8000"
+  apiBaseUrl: "http://apsilva-bed-data-platform.localhost:8000"
 };
 ```
 
-**Status:** Service-name URL (not localhost) - used as fallback if entrypoint doesn't run
+**Status:** Host-reachable URL - used as static fallback if entrypoint doesn't run
 
 ### Environment Example (root .env.example)
 ```env
@@ -169,7 +169,7 @@ window.APP_CONFIG = {
 BACKEND_HOST=apsilva-bed-data-platform-api
 BACKEND_PORT=8000
 FRONTEND_PORT=8080
-FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 
 # Azurite (Optional)
 AZURITE_BLOB_PORT=10000
@@ -182,7 +182,7 @@ PLATFORM_NET_NAME=apsilva-platform-network
 ```
 
 **Changes:**
-- ✅ Uses service names (apsilva-bed-data-platform-api) instead of localhost
+- ✅ Uses host-reachable URL for browser API calls
 - ✅ Clear separation between REQUIRED and OPTIONAL vars
 - ✅ All values are environment-driven
 
@@ -192,12 +192,12 @@ PLATFORM_NET_NAME=apsilva-platform-network
 
 ### Environment Loading Function
 ```bash
-load_frontend_env() {
+load_up_env() {
   # Validate REQUIRED variables
-  : "${BACKEND_HOST:?BACKEND_HOST is required in $FRONTEND_ENV_FILE}"
-  : "${BACKEND_PORT:?BACKEND_PORT is required in $FRONTEND_ENV_FILE}"
-  : "${FRONTEND_PORT:?FRONTEND_PORT is required in $FRONTEND_ENV_FILE}"
-  : "${FRONTEND_API_BASE_URL:?FRONTEND_API_BASE_URL is required in $FRONTEND_ENV_FILE}"
+  : "${BACKEND_HOST:?BACKEND_HOST is required in $UP_ENV_FILE}"
+  : "${BACKEND_PORT:?BACKEND_PORT is required in $UP_ENV_FILE}"
+  : "${FRONTEND_PORT:?FRONTEND_PORT is required in $UP_ENV_FILE}"
+  : "${FRONTEND_API_BASE_URL:?FRONTEND_API_BASE_URL is required in $UP_ENV_FILE}"
   # ✅ Uses bash required syntax: : "${VAR:?error}" to validate
 }
 ```
@@ -208,14 +208,14 @@ load_frontend_env() {
 
 ### Environment Generation Function
 ```bash
-ensure_frontend_env() {
-  if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
-    echo "Generating $FRONTEND_ENV_FILE from defaults..."
-    cat > "$FRONTEND_ENV_FILE" <<EOF
+ensure_up_env() {
+  if [[ ! -f "$UP_ENV_FILE" ]]; then
+    echo "Generating $UP_ENV_FILE from defaults..."
+    cat > "$UP_ENV_FILE" <<EOF
 BACKEND_HOST=apsilva-bed-data-platform-api
 BACKEND_PORT=8000
 FRONTEND_PORT=8080
-FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 AZURITE_BLOB_PORT=10000
 ...
 EOF
@@ -224,7 +224,7 @@ EOF
 ```
 
 **Status:**
-- ✅ Auto-generates .env with service-name URLs (not localhost)
+- ✅ Auto-generates orchestrator .env in `apsilva-up-data-platform`
 - ✅ Uses as defaults only - user can override
 
 ---
@@ -268,15 +268,15 @@ EOF
 
 ### ✅ No Localhost Hardcoding
 - [x] frontend/assets/app.js: No hardcoded localhost
-- [x] frontend/assets/config.js: Uses service name
+- [x] frontend/assets/config.js: Uses host-reachable URL default
 - [x] docker-entrypoint.d/40-generate-config.sh: No localhost fallback
 - [x] app/main.py: Uses parameterized CORS_ALLOWED_ORIGINS
 - [x] docker-compose files: All values from ${VAR} expressions
 
-### ✅ Service Name Usage
-- [x] Frontend connects to backend via service name: `apsilva-bed-data-platform-api`
-- [x] No localhost:8000 in production URLs
-- [x] .env.example uses service names as defaults
+### ✅ URL Strategy
+- [x] Frontend consumes `FRONTEND_API_BASE_URL` resolved by browser
+- [x] Recommended local default uses `.localhost` host alias
+- [x] Backend service name remains available for internal container networking
 
 ### ✅ Configuration Hierarchy
 - [x] .env file is source of truth
@@ -292,10 +292,10 @@ EOF
 ### Local Development
 ```bash
 # .env values (defaults from .env.example)
-FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
 
-# Result: Frontend (localhost:8080) ↔ Backend API (service name:8000)
+# Result: Frontend (localhost:8080) ↔ Backend API (host URL)
 ```
 
 ### Remote Backend
@@ -346,7 +346,7 @@ const apiBaseUrl = "http://localhost:8000";
 **To (Current State):**
 ```bash
 # .env drives everything (GOOD)
-FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 
 # Container startup validates required vars (ENFORCED)
 docker-entrypoint.d/40-generate-config.sh: ${FRONTEND_API_BASE_URL:?error}
@@ -372,8 +372,8 @@ if (!apiBaseUrl) { throw new Error("...is required"); }
 
 ### If Integrating Additional Services:
 1. Add to docker-compose networks
-2. Document service names in .env.example
-3. Use service names in connection strings (not localhost)
+2. Document host-reachable URLs for browser-facing endpoints
+3. Use service names only for internal container-to-container traffic
 
 ---
 

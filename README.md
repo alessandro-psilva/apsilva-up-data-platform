@@ -36,13 +36,13 @@ cd apsilva-up-data-platform
 
 ```bash
 # From the apsilva-up-data-platform directory
-./up-data-platform.sh setup
+cp .env.example .env
+nano .env
 ```
 
 This will:
-- Create `.env` from `.env.example` if not present
-- Validate all required environment variables
-- Set up Docker network and services
+- Configure orchestration variables in this repository
+- Keep sibling repos independent for direct execution
 
 ### 3. Start Services
 
@@ -74,13 +74,17 @@ curl http://localhost:8000/databricks/jobs
 ./up-data-platform.sh start      # Start all services
 ./up-data-platform.sh stop       # Stop all services
 ./up-data-platform.sh restart    # Restart all services
-./up-data-platform.sh logs       # View logs
 ./up-data-platform.sh status     # Check service status
+./up-data-platform.sh stop --purge-data  # Stop and remove volumes
 ```
 
 ## ⚙️ Environment Configuration
 
-All configuration is environment-driven through the `.env` file. See `ENVIRONMENT_QUICK_REFERENCE.md` for complete variable documentation.
+For orchestration runs (`./up-data-platform.sh ...`), configuration is environment-driven through `apsilva-up-data-platform/.env`.
+
+Sibling repositories remain independent and can still be executed directly with their own `.env` files.
+
+See `ENVIRONMENT_QUICK_REFERENCE.md` for complete variable documentation.
 
 **Key variables:**
 
@@ -90,7 +94,7 @@ BACKEND_HOST=apsilva-bed-data-platform-api
 BACKEND_PORT=8000
 
 # Frontend
-FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform-api:8000
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 FRONTEND_PORT=8080
 
 # Storage (Azurite)
@@ -108,7 +112,7 @@ PLATFORM_NET_NAME=apsilva-platform-network
 - **CORS**: Hardened to allow only `localhost:8080` and `127.0.0.1:8080`
 - **Parameter Validation**: Strict type checking for API parameters (no nested objects)
 - **Environment-Driven**: No hardcoded defaults; all configuration from env vars
-- **Service Names**: Uses Docker internal DNS (`apsilva-bed-data-platform-api:8000`)
+- **Frontend API URL**: Must be host-reachable for browser execution (`http://apsilva-bed-data-platform.localhost:8000` by default)
 
 ## 📚 Documentation
 
@@ -118,6 +122,14 @@ PLATFORM_NET_NAME=apsilva-platform-network
 - **Frontend**: See `apsilva-fed-data-platform/README.md`
 
 ## 🛠️ Development Workflow
+
+### Orchestrator Environment
+
+```bash
+cd apsilva-up-data-platform
+cp .env.example .env
+nano .env
+```
 
 ### Run Backend Tests
 
@@ -154,7 +166,7 @@ cat .env
 
 All variables should be set. If missing, run:
 ```bash
-./up-data-platform.sh setup
+cp .env.example .env
 ```
 
 ### Frontend can't reach backend
@@ -164,7 +176,7 @@ Verify FRONTEND_API_BASE_URL in `.env`:
 grep FRONTEND_API_BASE_URL .env
 ```
 
-Should be: `http://apsilva-bed-data-platform-api:8000` (service name, not localhost)
+Should be: `http://apsilva-bed-data-platform.localhost:8000` (host URL consumed by browser)
 
 ### Port conflicts
 

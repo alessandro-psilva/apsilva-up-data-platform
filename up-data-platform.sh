@@ -9,52 +9,52 @@ BACKEND_REPO_NAME="$(basename "$BACKEND_DIR")"
 FRONTEND_REPO_NAME="$(basename "$FRONTEND_STACK_DIR")"
 BACKEND_HOST_PUBLIC="${BACKEND_HOST_PUBLIC:-${BACKEND_REPO_NAME}.localhost}"
 FRONTEND_HOST_PUBLIC="${FRONTEND_HOST_PUBLIC:-${FRONTEND_REPO_NAME}.localhost}"
-FRONTEND_ENV_FILE="$FRONTEND_STACK_DIR/.env"
-FRONTEND_ENV_EXAMPLE="$FRONTEND_STACK_DIR/.env.example"
+UP_ENV_FILE="$BASE_DIR/.env"
+UP_ENV_EXAMPLE="$BASE_DIR/.env.example"
 BACKEND_HOST="${BACKEND_HOST:-}"
 BACKEND_PORT="${BACKEND_PORT:-}"
 FRONTEND_PORT="${FRONTEND_PORT:-}"
 FRONTEND_API_BASE_URL="${FRONTEND_API_BASE_URL:-}"
 PID_FILE="$REPOS_DIR/.apsilva-fed-http.pid"
 
-ensure_frontend_env() {
-  if [[ ! -f "$FRONTEND_ENV_FILE" ]]; then
-    if [[ -f "$FRONTEND_ENV_EXAMPLE" ]]; then
-      cp "$FRONTEND_ENV_EXAMPLE" "$FRONTEND_ENV_FILE"
-      echo "[frontend] Arquivo .env criado a partir de .env.example"
+ensure_up_env() {
+  if [[ ! -f "$UP_ENV_FILE" ]]; then
+    if [[ -f "$UP_ENV_EXAMPLE" ]]; then
+      cp "$UP_ENV_EXAMPLE" "$UP_ENV_FILE"
+      echo "[orchestrator] Arquivo .env criado a partir de .env.example"
     else
-      cat >"$FRONTEND_ENV_FILE" <<EOF
-    BACKEND_HOST=apsilva-bed-data-platform-api
-    BACKEND_PORT=8000
-    FRONTEND_PORT=8080
-    FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
+      cat >"$UP_ENV_FILE" <<EOF
+BACKEND_HOST=apsilva-bed-data-platform-api
+BACKEND_PORT=8000
+FRONTEND_PORT=8080
+FRONTEND_API_BASE_URL=http://apsilva-bed-data-platform.localhost:8000
 AZURITE_BLOB_PORT=10000
 AZURITE_QUEUE_PORT=10001
 AZURITE_TABLE_PORT=10002
 AZURITE_DATA_DIR=./azurite-data
 PLATFORM_NET_NAME=apsilva-platform-network
 EOF
-      echo "[frontend] Arquivo .env criado com valores padrao"
+      echo "[orchestrator] Arquivo .env criado com valores padrao"
     fi
   fi
 }
 
-load_frontend_env() {
-  ensure_frontend_env
+load_up_env() {
+  ensure_up_env
 
   set -a
   # shellcheck disable=SC1090
-  . "$FRONTEND_ENV_FILE"
+  . "$UP_ENV_FILE"
   set +a
 
-  : "${BACKEND_HOST:?BACKEND_HOST is required in $FRONTEND_ENV_FILE}"
-  : "${BACKEND_PORT:?BACKEND_PORT is required in $FRONTEND_ENV_FILE}"
-  : "${FRONTEND_PORT:?FRONTEND_PORT is required in $FRONTEND_ENV_FILE}"
-  : "${FRONTEND_API_BASE_URL:?FRONTEND_API_BASE_URL is required in $FRONTEND_ENV_FILE}"
+  : "${BACKEND_HOST:?BACKEND_HOST is required in $UP_ENV_FILE}"
+  : "${BACKEND_PORT:?BACKEND_PORT is required in $UP_ENV_FILE}"
+  : "${FRONTEND_PORT:?FRONTEND_PORT is required in $UP_ENV_FILE}"
+  : "${FRONTEND_API_BASE_URL:?FRONTEND_API_BASE_URL is required in $UP_ENV_FILE}"
 }
 
 start_backend() {
-  load_frontend_env
+  load_up_env
   echo "[backend] Limpando containers antigos..."
   (cd "$BACKEND_DIR" && docker compose down --remove-orphans)
   echo "[backend] Subindo API com Docker Compose..."
@@ -63,13 +63,19 @@ start_backend() {
 }
 
 stop_backend() {
+  local purge_data="${1:-false}"
   echo "[backend] Parando API..."
-  (cd "$BACKEND_DIR" && docker compose down)
+  if [[ "$purge_data" == "true" ]]; then
+    (cd "$BACKEND_DIR" && docker compose down -v)
+    echo "[backend] Volumes removidos (-v)"
+  else
+    (cd "$BACKEND_DIR" && docker compose down)
+  fi
   echo "[backend] OK"
 }
 
 start_frontend() {
-  load_frontend_env
+  load_up_env
 
   # Encerra eventual servidor legado para evitar conflito na porta 8080.
   if [[ -f "$PID_FILE" ]]; then
@@ -90,7 +96,8 @@ start_frontend() {
 }
 
 stop_frontend() {
-  load_frontend_env
+  local purge_data="${1:-false}"
+  load_up_env
 
   if [[ -f "$PID_FILE" ]]; then
     local current_pid
@@ -104,12 +111,17 @@ stop_frontend() {
   pkill -f "python3 -m http.server $FRONTEND_PORT" 2>/dev/null || true
 
   echo "[frontend] Parando frontend containerizado + Azurite..."
-  (cd "$FRONTEND_STACK_DIR" && docker compose down)
+  if [[ "$purge_data" == "true" ]]; then
+    (cd "$FRONTEND_STACK_DIR" && docker compose down -v)
+    echo "[frontend] Volumes removidos (-v)"
+  else
+    (cd "$FRONTEND_STACK_DIR" && docker compose down)
+  fi
   echo "[frontend] OK"
 }
 
 status_all() {
-  load_frontend_env
+  load_up_env
 
   echo "--- Status backend ---"
   (cd "$BACKEND_DIR" && docker compose ps)
@@ -136,20 +148,24 @@ start_all() {
 }
 
 stop_all() {
-  stop_frontend
-  stop_backend
+  local purge_data="${1:-false}"
+  stop_frontend "$purge_data"
+  stop_backend "$purge_data"
 }
 
 usage() {
-  load_frontend_env
+  load_up_env
   cat <<EOF
-Uso: $(basename "$0") [start|stop|restart|status]
+Uso: $(basename "$0") [start|stop|restart|status] [--purge-data]
 
 Comandos:
   start    Sobe backend (docker compose) e frontend containerizado (nginx + Azurite)
-  stop     Para frontend e backend
+  stop     Para frontend e backend (mantem volumes/dados)
   restart  Reinicia tudo
   status   Mostra status dos dois
+
+Opcoes:
+  --purge-data   Com stop/restart, remove volumes (docker compose down -v)
 
 📍 Acesso:
   http://$FRONTEND_HOST_PUBLIC:$FRONTEND_PORT        🐷 Frontend (host)
@@ -170,22 +186,29 @@ Variaveis opcionais:
   FRONTEND_API_BASE_URL     URL da API consumida pelo frontend (obrigatorio no .env)
 
 Obs:
-  Se .env nao existir em apsilva-fed-data-platform, ele sera criado automaticamente.
+  Se .env nao existir em apsilva-up-data-platform, ele sera criado automaticamente.
 EOF
 }
 
 main() {
   local command="${1:-start}"
+  local purge_data="false"
+
+  for arg in "$@"; do
+    if [[ "$arg" == "--purge-data" ]]; then
+      purge_data="true"
+    fi
+  done
 
   case "$command" in
     start)
       start_all
       ;;
     stop)
-      stop_all
+      stop_all "$purge_data"
       ;;
     restart)
-      stop_all
+      stop_all "$purge_data"
       start_all
       ;;
     status)
